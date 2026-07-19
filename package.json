@@ -1,6 +1,6 @@
 {
   "name": "svelte-loading-indicator",
-  "version": "0.0.0",
+  "version": "0.0.6",
   "description": "A SvelteKit top loading progress bar component, feature-parity port of nextjs-toploader, built with Svelte 5 runes.",
   "type": "module",
   "license": "MIT",
