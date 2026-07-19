@@ -1,6 +1,6 @@
 {
   "name": "svelte-loading-indicator",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A SvelteKit top loading progress bar component, feature-parity port of nextjs-toploader, built with Svelte 5 runes.",
   "type": "module",
   "license": "MIT",
@@ -32,6 +32,7 @@
     "preview": "vite preview",
     "prepare": "svelte-kit sync || echo ''",
     "prepack": "svelte-kit sync && svelte-package && publint",
+    "preinstall": "npx only-allow pnpm",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "prepublishOnly": "npm run prepack",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
@@ -93,5 +94,5 @@
   "engines": {
     "node": ">=18"
   },
-  "packageManager": "pnpm@11.14.0"
+  "packageManager": "pnpm@11.15.0+sha512.266f8957a30d2be6e9468e5e66bcdedd35a794175f71b067ba8504d686cce1d0c0f429b33c323c3c569ad4891e667574a49ff71d1b89a22cc66f13c65818c578"
 }
