@@ -1,0 +1,91 @@
+name: Publish to npm
+
+# Runs on every push to main. Publishing itself is still guarded by a
+# version-diff check below, so pushing without bumping package.json
+# version will build + check but skip the actual `npm publish`.
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - '.github/**'
+      - '.gitignore'
+      - 'LICENSE'
+
+# Needed for: pushing the release git tag (contents), and npm provenance
+# attestation via OIDC (id-token).
+permissions:
+  contents: write
+  id-token: write
+
+# Avoid two publishes racing if commits land in quick succession.
+concurrency:
+  group: npm-publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type-check
+        run: pnpm run check
+
+      - name: Build publishable package
+        run: pnpm run package
+
+      - name: Check if version changed
+        id: version-check
+        run: |
+          PKG_NAME=$(node -p "require('./package.json').name")
+          LOCAL_VERSION=$(node -p "require('./package.json').version")
+          PUBLISHED_VERSION=$(pnpm view "$PKG_NAME" version 2>/dev/null || echo "0.0.0")
+
+          echo "pkg-name=$PKG_NAME" >> "$GITHUB_OUTPUT"
+          echo "local-version=$LOCAL_VERSION" >> "$GITHUB_OUTPUT"
+          echo "published-version=$PUBLISHED_VERSION" >> "$GITHUB_OUTPUT"
+
+          if [ "$LOCAL_VERSION" = "$PUBLISHED_VERSION" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "package.json version ($LOCAL_VERSION) matches the version already on npm — skipping publish."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Publishing $PKG_NAME: $PUBLISHED_VERSION -> $LOCAL_VERSION"
+          fi
+
+      - name: Publish to npm
+        if: steps.version-check.outputs.changed == 'true'
+        run: pnpm publish --access public --no-git-checks --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Tag release
+        if: steps.version-check.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          TAG="v${{ steps.version-check.outputs.local-version }}"
+          git tag "$TAG"
+          git push origin "$TAG"
